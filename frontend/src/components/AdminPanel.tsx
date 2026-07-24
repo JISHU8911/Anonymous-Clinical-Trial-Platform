@@ -45,13 +45,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   return (
     <div className="glass-panel" style={{ padding: '1.75rem' }}>
       <h3 className="card-title">
-        <Settings size={20} color="#a5b4fc" />
+        <Settings size={20} color="#4338ca" />
         Clinical Trial Investigator Controls
       </h3>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '0.75rem' }}>
-          Current Recruitment Status: <b>{isTrialActive ? 'ACTIVE' : 'PAUSED'}</b>
+        <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '0.75rem' }}>
+          Current Recruitment Status: <b style={{ color: isTrialActive ? '#047857' : '#b45309' }}>{isTrialActive ? 'ACTIVE' : 'PAUSED'}</b>
         </p>
         <button
           className="btn btn-secondary"
@@ -59,12 +59,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           disabled={!isConnected || isSubmitting}
           style={{ width: '100%' }}
         >
-          {isSubmitting ? <Loader2 size={16} className="spin" /> : isTrialActive ? <Pause size={16} color="#fbbf24" /> : <Play size={16} color="#34d399" />}
+          {isSubmitting ? <Loader2 size={16} className="spin" /> : isTrialActive ? <Pause size={16} color="#d97706" /> : <Play size={16} color="#059669" />}
           {isTrialActive ? 'Pause Trial Recruitment' : 'Resume Trial Recruitment'}
         </button>
       </div>
 
-      <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '1.5rem 0' }} />
+      <hr style={{ borderColor: 'rgba(226, 232, 240, 0.8)', margin: '1.5rem 0' }} />
 
       <form onSubmit={handleInit}>
         <div className="form-group">
@@ -84,13 +84,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           style={{ width: '100%' }}
           disabled={!isConnected || isSubmitting}
         >
-          {isSubmitting ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} color="#38bdf8" />}
+          {isSubmitting ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} color="#0284c7" />}
           Initialize Protocol #{newTrialId}
         </button>
       </form>
 
       {statusMsg && (
-        <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#818cf8', textAlign: 'center' }}>
+        <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#4338ca', textAlign: 'center', fontWeight: 500 }}>
           {statusMsg}
         </div>
       )}

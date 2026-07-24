@@ -31,7 +31,6 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({
     try {
       await onSubmit(rating, adverseEvent, patientSecret);
       setStatus({ type: 'success', message: 'Anonymous feedback successfully proven & submitted to Midnight network!' });
-      // Refresh patient secret for next submission
       setPatientSecret('patient-secret-' + Math.random().toString(36).substring(2, 10));
     } catch (err: any) {
       setStatus({ type: 'error', message: err?.message || 'Failed to submit feedback' });
@@ -41,7 +40,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({
   return (
     <div className="glass-panel" style={{ padding: '1.75rem' }}>
       <h3 className="card-title">
-        <Lock size={20} color="#6366f1" />
+        <Lock size={20} color="#4f46e5" />
         Anonymous Patient Feedback Form
       </h3>
 
@@ -79,9 +78,9 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({
               checked={adverseEvent}
               onChange={(e) => setAdverseEvent(e.target.checked)}
               disabled={isSubmitting || !isTrialActive}
-              style={{ width: '18px', height: '18px', accentColor: '#f43f5e' }}
+              style={{ width: '18px', height: '18px', accentColor: '#e11d48' }}
             />
-            <span style={{ fontSize: '0.9rem', color: adverseEvent ? '#fb7185' : '#94a3b8' }}>
+            <span style={{ fontSize: '0.9rem', color: adverseEvent ? '#be123c' : '#475569', fontWeight: 500 }}>
               <ShieldAlert size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
               Report Adverse Reaction / Side Effect (Confidential)
             </span>

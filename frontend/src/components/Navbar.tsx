@@ -26,10 +26,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <nav className="glass-panel navbar">
       <div className="brand-title">
-        <ShieldCheck size={28} color="#6366f1" />
+        <ShieldCheck size={28} color="#4f46e5" />
         <div>
           <span>Anonymous Clinical Trial Platform</span>
-          <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>
+          <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 500 }}>
             Midnight Zero-Knowledge Protocol
           </div>
         </div>
@@ -43,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {isConnected ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '0.85rem', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <span style={{ fontSize: '0.85rem', color: '#334155', background: '#f1f5f9', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontWeight: 500 }}>
               {formatAddress(address || '')}
             </span>
             <button className="btn btn-secondary" onClick={onDisconnect} title="Disconnect Wallet">

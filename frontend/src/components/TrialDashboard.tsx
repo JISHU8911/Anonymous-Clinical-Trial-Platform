@@ -29,7 +29,7 @@ export const TrialDashboard: React.FC<TrialDashboardProps> = ({ ledger, onRefres
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h2 className="card-title" style={{ margin: 0 }}>
-          <Activity size={22} color="#38bdf8" />
+          <Activity size={22} color="#0284c7" />
           Clinical Trial Ledger Dashboard
         </h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -47,9 +47,9 @@ export const TrialDashboard: React.FC<TrialDashboardProps> = ({ ledger, onRefres
         <div className="glass-panel stat-card">
           <div className="stat-header">
             <span>Protocol Trial ID</span>
-            <Hash size={18} color="#818cf8" />
+            <Hash size={18} color="#4f46e5" />
           </div>
-          <div className="stat-value" style={{ color: '#818cf8' }}>
+          <div className="stat-value" style={{ color: '#4f46e5' }}>
             #{ledger.trialId.toString()}
           </div>
           <div className="stat-footer">On-chain Registered Clinical Trial</div>
@@ -58,9 +58,9 @@ export const TrialDashboard: React.FC<TrialDashboardProps> = ({ ledger, onRefres
         <div className="glass-panel stat-card">
           <div className="stat-header">
             <span>Anonymous Responses</span>
-            <Users size={18} color="#34d399" />
+            <Users size={18} color="#059669" />
           </div>
-          <div className="stat-value" style={{ color: '#34d399' }}>
+          <div className="stat-value" style={{ color: '#059669' }}>
             {ledger.totalResponses.toString()}
           </div>
           <div className="stat-footer">Total Patient Submissions Verified by ZK</div>
@@ -69,9 +69,9 @@ export const TrialDashboard: React.FC<TrialDashboardProps> = ({ ledger, onRefres
         <div className="glass-panel stat-card">
           <div className="stat-header">
             <span>Avg Satisfaction Score</span>
-            <Star size={18} color="#fbbf24" />
+            <Star size={18} color="#d97706" />
           </div>
-          <div className="stat-value" style={{ color: '#fbbf24' }}>
+          <div className="stat-value" style={{ color: '#d97706' }}>
             {avgRating} <span style={{ fontSize: '1rem', color: '#64748b' }}>/ 5.0</span>
           </div>
           <div className="stat-footer">Cumulative Score: {ledger.ratingSum.toString()} pts</div>
@@ -80,17 +80,17 @@ export const TrialDashboard: React.FC<TrialDashboardProps> = ({ ledger, onRefres
         <div className="glass-panel stat-card">
           <div className="stat-header">
             <span>Adverse Reaction Rate</span>
-            <AlertTriangle size={18} color="#f43f5e" />
+            <AlertTriangle size={18} color="#e11d48" />
           </div>
-          <div className="stat-value" style={{ color: '#f43f5e' }}>
+          <div className="stat-value" style={{ color: '#e11d48' }}>
             {adverseRate}%
           </div>
           <div className="stat-footer">{ledger.adverseEventCount.toString()} Adverse Events Reported</div>
         </div>
       </div>
 
-      <div className="glass-panel" style={{ padding: '1rem 1.25rem', fontSize: '0.8rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>Contract Address: <code style={{ color: '#38bdf8' }}>{ledger.contractAddress}</code></span>
+      <div className="glass-panel" style={{ padding: '1rem 1.25rem', fontSize: '0.8rem', color: '#475569', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <span>Contract Address: <code style={{ color: '#0284c7', background: '#f1f5f9', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 600 }}>{ledger.contractAddress}</code></span>
         <span>Public Ledger State: Synchronized</span>
       </div>
     </div>
