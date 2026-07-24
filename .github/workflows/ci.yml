@@ -32,12 +32,7 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Compile Compact Smart Contract
-        run: |
-          if [ -f ~/.local/bin/compact ]; then
-            npm run compile
-          else
-            echo "Skipping compact binary compile in CI runner without compact binary; testing managed artifacts."
-          fi
+        run: npm run compile
 
       - name: Run Automated Unit & Privacy Tests
         run: npm test
