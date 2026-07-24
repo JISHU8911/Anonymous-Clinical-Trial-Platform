@@ -6,7 +6,7 @@
   "author": "",
   "license": "MIT",
   "scripts": {
-    "compile": "/home/zeal/.local/bin/compact compile contracts/clinical-trial.compact contracts/managed/clinical-trial",
+    "compile": "compact compile contracts/clinical-trial.compact contracts/managed/clinical-trial 2>/dev/null || $HOME/.local/bin/compact compile contracts/clinical-trial.compact contracts/managed/clinical-trial || /home/zeal/.local/bin/compact compile contracts/clinical-trial.compact contracts/managed/clinical-trial",
     "build": "npx tsc --noEmit || true",
     "setup": "npx tsx src/setup.ts",
     "deploy": "npx tsx src/deploy.ts",

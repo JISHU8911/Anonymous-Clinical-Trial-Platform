@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../",
+  "sources": ["contracts/clinical-trial.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAAA;;;;;;;;;;MAYA,AAAA,eAMC;;;;;cAN8B,gBAAwB;;;;;;;;;;;;;;;;;;yCAAxB,gBAAwB;;;;;;;;;iDAAxB,gBAAwB;;;OAMtD;MAKD,AAAA,cAcC;;;;;cAd6B,eAAwB;cAAE,QAAgB;cAAE,kBAA0B;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;yCAAtE,eAAwB,+BAAE,QAAgB,+BAAE,kBAA0B;;;;;;;;;gDAAtE,eAAwB;gDAAE,QAAgB;gDAAE,kBAA0B;;;OAcnG;MAGD,AAAA,iBAEC;;;;;;;;;;;;;;;;;;;;;;OAAA;;;;;;;;;;;;GACA;EA3CD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAKA;;;;;;;;;yEAAgC;IAChC;;;;;;;;;yEAAuC;IACvC;;;;;;;;;yEAA0C;IAC1C;;;;;;;;;yEAAkC;IAClC;;;;;;;;;yEAAqC;;;;;;;GAkCpC;EA/BD,AAAA,kBAMC,4BAN8B,gBAAwB;IACnD;;;;;;;2HAAmB,gBAAc;;yEAA1B;UACP,KAAc;IAAd;;;;;;;2HAAA,KAAc;;yEAAA;UACd,KAAiB;IAAjB;;;;;;;2HAAA,KAAiB;;yEAAA;UACjB,KAAS;IAAT;;;;;;;2HAAA,KAAS;;yEAAA;IACT;;;;;;;;;yEAAa;;GAChB;EAKD,AAAA,iBAcC;;oBAd6B,eAAwB;oBAAE,QAAgB;oBAAE,kBAA0B;;oDAEzF;;;;;;;;;;;yHAAa;;4BAGb,QAAM,UAAuB,QAAM;;0CAGnC,kBAAgB;;0CAAuB,kBAAgB;;UAG9D,KAAc;;;;;6CAAa;;;;;;;;;;;kHAAc;;;IAAzC;;;;;;;2HAAA,KAAc;;yEAAA;UACd,KAAS;;;;;6CAAa;;;;;;;;;;;kHAAS;;qBAAG,QAAM;IAAxC;;;;;;;2HAAA,KAAS;;yEAAA;UACT,KAAiB;;;;;6CAAa;;;;;;;;;;;kHAAiB;;qBAAG,kBAAgB;IAAlE;;;;;;;2HAAA,KAAiB;;yEAAA;;GACpB;EAGD,AAAA,oBAEC;UADG,KAAa,4BAAa;;;;;;;;;;;gHAAa;IAAvC;;;;;;;2HAAA,KAAa;;yEAAA;;GAChB;;;;;;;;;;;;;;;;;;;;;;;;IArCD;qCAAA;;;;;;;;;;;0GAAgC;KAAA;IAChC;qCAAA;;;;;;;;;;;0GAAuC;KAAA;IACvC;qCAAA;;;;;;;;;;;0GAA0C;KAAA;IAC1C;qCAAA;;;;;;;;;;;0GAAkC;KAAA;IAClC;qCAAA;;;;;;;;;;;0GAAqC;KAAA;;;;;;;;;;"
+}
