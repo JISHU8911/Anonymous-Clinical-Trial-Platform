@@ -1,0 +1,43 @@
+pragma language_version >= 0.23;
+
+import CompactStandardLibrary;
+
+// Public ledger state - aggregated clinical trial metrics visible on-chain
+export ledger trialId: Uint<64>;
+export ledger totalResponses: Uint<64>;
+export ledger adverseEventCount: Uint<64>;
+export ledger ratingSum: Uint<64>;
+export ledger isTrialActive: Boolean;
+
+// Circuit to initialize a clinical trial protocol
+export circuit initializeTrial(initialTrialId: Uint<64>): [] {
+    trialId = disclose(initialTrialId);
+    totalResponses = disclose(0 as Uint<64>);
+    adverseEventCount = disclose(0 as Uint<64>);
+    ratingSum = disclose(0 as Uint<64>);
+    isTrialActive = disclose(true);
+}
+
+// Circuit for patients to submit anonymous trial feedback
+// Patient identity and individual ratings remain private in ZK
+// adverseEventFlag: 0 = No adverse reaction, 1 = Adverse reaction reported
+export circuit submitFeedback(patientSecret: Bytes<32>, rating: Uint<64>, adverseEventFlag: Uint<64>): [] {
+    // Assert trial is currently active
+    assert(isTrialActive, "Clinical trial is not currently active");
+    
+    // Assert rating is within valid scale (1 to 5)
+    assert(rating >= (1 as Uint<64>) && rating <= (5 as Uint<64>), "Rating must be between 1 and 5");
+    
+    // Assert adverse event flag is 0 or 1
+    assert(adverseEventFlag == (0 as Uint<64>) || adverseEventFlag == (1 as Uint<64>), "Adverse event flag must be 0 or 1");
+    
+    // Disclose aggregated updates publicly to update public ledger counters
+    totalResponses = disclose((totalResponses + 1) as Uint<64>);
+    ratingSum = disclose((ratingSum + rating) as Uint<64>);
+    adverseEventCount = disclose((adverseEventCount + adverseEventFlag) as Uint<64>);
+}
+
+// Circuit to pause or resume trial by administrator
+export circuit toggleTrialStatus(): [] {
+    isTrialActive = disclose(!isTrialActive);
+}
