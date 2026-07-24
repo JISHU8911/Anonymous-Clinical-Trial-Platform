@@ -1,0 +1,53 @@
+name: Anonymous Clinical Trial Platform CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-test:
+    name: Build, Compile & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Project Dependencies
+        run: npm ci || npm install
+
+      - name: Install Compact Compiler
+        run: |
+          mkdir -p ~/.local/bin
+          curl -sSL https://releases.midnight.network/compact/latest/compact-linux-x86_64 -o ~/.local/bin/compact || true
+          chmod +x ~/.local/bin/compact || true
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile Compact Smart Contract
+        run: |
+          if [ -f ~/.local/bin/compact ]; then
+            npm run compile
+          else
+            echo "Skipping compact binary compile in CI runner without compact binary; testing managed artifacts."
+          fi
+
+      - name: Run Automated Unit & Privacy Tests
+        run: npm test
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci || npm install
+
+      - name: Type-Check and Build Frontend App
+        run: |
+          cd frontend
+          npm run build
