@@ -1,9 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
-import { TrialDashboard, LedgerState } from './components/TrialDashboard';
-import { FeedbackForm } from './components/FeedbackForm';
-import { AdminPanel } from './components/AdminPanel';
-import { PrivacyBanner } from './components/PrivacyBanner';
+import { Footer } from './components/Footer';
+import { LedgerState } from './components/TrialDashboard';
+
+// Pages
+import { LandingPage } from './pages/LandingPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { PatientPortalPage } from './pages/PatientPortalPage';
+import { TrialAdminPage } from './pages/TrialAdminPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { PrivacyModelPage } from './pages/PrivacyModelPage';
+import { ResearchHistoryPage } from './pages/ResearchHistoryPage';
+import { AboutPage } from './pages/AboutPage';
+
 import { useMidnightWallet } from './hooks/useMidnightWallet';
 
 export function App() {
@@ -24,7 +34,6 @@ export function App() {
   const fetchLedgerState = useCallback(async () => {
     setIsLoadingLedger(true);
     try {
-      // Fetch public ledger state from indexer GraphQL if configured, or use live state
       const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || ledger.contractAddress;
       setLedger((prev) => ({
         ...prev,
@@ -90,7 +99,7 @@ export function App() {
   };
 
   return (
-    <div className="app-container">
+    <div className="app-wrapper">
       <Navbar
         isConnected={wallet.isConnected}
         isConnecting={wallet.isConnecting}
@@ -100,34 +109,51 @@ export function App() {
         onDisconnect={wallet.disconnect}
       />
 
-      <PrivacyBanner />
+      <main className="app-container">
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <DashboardPage
+                ledger={ledger}
+                onRefresh={fetchLedgerState}
+                isLoading={isLoadingLedger}
+                isConnected={wallet.isConnected}
+              />
+            }
+          />
+          <Route
+            path="/submit"
+            element={
+              <PatientPortalPage
+                onSubmit={handleSubmitFeedback}
+                isSubmitting={isSubmitting}
+                isConnected={wallet.isConnected}
+                isTrialActive={ledger.isTrialActive}
+              />
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <TrialAdminPage
+                ledger={ledger}
+                onToggleStatus={handleToggleTrialStatus}
+                onInitializeTrial={handleInitializeTrial}
+                isSubmitting={isSubmitting}
+                isConnected={wallet.isConnected}
+              />
+            }
+          />
+          <Route path="/analytics" element={<AnalyticsPage ledger={ledger} />} />
+          <Route path="/privacy" element={<PrivacyModelPage />} />
+          <Route path="/history" element={<ResearchHistoryPage />} />
+          <Route path="/about" element={<AboutPage />} />
+        </Routes>
+      </main>
 
-      <TrialDashboard
-        ledger={ledger}
-        onRefresh={fetchLedgerState}
-        isLoading={isLoadingLedger}
-      />
-
-      <div className="content-grid">
-        <FeedbackForm
-          onSubmit={handleSubmitFeedback}
-          isSubmitting={isSubmitting}
-          isConnected={wallet.isConnected}
-          isTrialActive={ledger.isTrialActive}
-        />
-
-        <AdminPanel
-          isTrialActive={ledger.isTrialActive}
-          onToggleStatus={handleToggleTrialStatus}
-          onInitializeTrial={handleInitializeTrial}
-          isSubmitting={isSubmitting}
-          isConnected={wallet.isConnected}
-        />
-      </div>
-
-      <footer className="glass-panel" style={{ textAlign: 'center', padding: '1.25rem', color: '#64748b', fontSize: '0.8rem' }}>
-        Anonymous Clinical Trial Platform • Built on Midnight Network (Zero-Knowledge Compact Smart Contracts)
-      </footer>
+      <Footer />
     </div>
   );
 }
