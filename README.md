@@ -26,10 +26,10 @@ The platform enables patients to anonymously participate in clinical trials whil
 # 📸 Platform Screenshots
 
 ### Section 1: Anonymous Clinical Trial Landing Page
-![Anonymous Clinical Trial Landing Page](docs/images/landing-page.png)
+![Anonymous Clinical Trial Landing Page](https://raw.githubusercontent.com/JISHU8911/Anonymous-Clinical-Trial-Platform/main/docs/images/Landing-page.jpg)
 
 ### Section 2: Clinical Trial Dashboard & Verification Portal
-![Clinical Trial Dashboard & Verification Portal](docs/images/clinical-dashboard.png)
+![Clinical Trial Dashboard & Verification Portal](https://raw.githubusercontent.com/JISHU8911/Anonymous-Clinical-Trial-Platform/main/docs/images/Trial-Feedback.jpg)
 
 ---
 
