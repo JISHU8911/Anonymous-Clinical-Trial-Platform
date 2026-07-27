@@ -5,18 +5,31 @@
 //
 // Features:
 //   - Discovers providers via Object.values(window.midnight || {})
-//   - Connects using provider.connect() or provider.enable() WITHOUT forcing network arguments
-//   - Detects network dynamically from wallet response
-//   - Provides detailed error handling for Network ID mismatch & connection rejections
-//   - Stores provider name, RDNS, and API version for debugging
+//   - Passes validated network ID (defaults to 'preprod') to provider.connect(network)
+//   - Validates target network against ['mainnet', 'testnet', 'devnet', 'qanet', 'undeployed', 'preview', 'preprod']
+//   - Prevents 'Invalid network ID: undefined' errors
+//   - Displays requested & connected network in Debug Panel
 // =============================================================================
+
+export const VALID_NETWORKS = [
+  'mainnet',
+  'testnet',
+  'devnet',
+  'qanet',
+  'undeployed',
+  'preview',
+  'preprod',
+] as const;
+
+export type ValidNetwork = (typeof VALID_NETWORKS)[number];
 
 export interface WalletState {
   isConnected: boolean;
   isConnecting: boolean;
   address: string | null;
   coinPublicKey: string | null;
-  network: string;
+  requestedNetwork: string;
+  network: string; // connected network
   balance: string | null;
   error: string | null;
   laceDetected: boolean;
@@ -30,8 +43,8 @@ export interface LaceProvider {
   rdns?: string;
   apiVersion?: string;
   icon?: string;
-  connect?: () => Promise<LaceAPI>;
-  enable?: () => Promise<LaceAPI>;
+  connect?: (network?: string) => Promise<LaceAPI>;
+  enable?: (network?: string) => Promise<LaceAPI>;
   isEnabled?: () => Promise<boolean>;
 }
 
@@ -57,8 +70,19 @@ declare global {
 }
 
 /**
+ * Resolves a valid target network ID. Never returns undefined.
+ * Defaults to 'preprod' if VITE_NETWORK is missing or invalid.
+ */
+function getTargetNetwork(): ValidNetwork {
+  const envNet = import.meta.env.VITE_NETWORK?.trim()?.toLowerCase();
+  if (envNet && (VALID_NETWORKS as readonly string[]).includes(envNet)) {
+    return envNet as ValidNetwork;
+  }
+  return 'preprod';
+}
+
+/**
  * Discover the Midnight Lace Wallet provider dynamically from window.midnight.
- * Supports Lace 4.0.1 API (provider.connect / provider.enable).
  */
 function discoverLaceProvider(): LaceProvider | null {
   if (typeof window === 'undefined') return null;
@@ -91,12 +115,15 @@ const SESSION_KEY = 'midnight-lace-connected';
  * React hook for Midnight Lace Wallet integration.
  */
 export function useMidnightWallet() {
+  const initialNetwork = getTargetNetwork();
+
   const [walletState, setWalletState] = useState<WalletState>({
     isConnected: false,
     isConnecting: false,
     address: null,
     coinPublicKey: null,
-    network: 'auto-detected',
+    requestedNetwork: initialNetwork,
+    network: initialNetwork,
     balance: null,
     error: null,
     laceDetected: false,
@@ -108,7 +135,7 @@ export function useMidnightWallet() {
   const connectRef = useRef<(() => Promise<void>) | null>(null);
 
   /**
-   * Check presence of Lace Wallet provider and update state flags.
+   * Check presence of Lace Wallet provider.
    */
   const checkLacePresence = useCallback(() => {
     const provider = discoverLaceProvider();
@@ -135,11 +162,19 @@ export function useMidnightWallet() {
   }, []);
 
   /**
-   * Connect to Midnight Lace Wallet using provider.connect() or provider.enable().
-   * NO arguments are passed to avoid "Network ID mismatch" errors.
+   * Connect to Midnight Lace Wallet.
+   * Passes validated network ID to provider.connect(targetNetwork).
    */
   const connect = useCallback(async () => {
-    setWalletState((prev) => ({ ...prev, isConnecting: true, error: null }));
+    const targetNetwork = getTargetNetwork();
+    console.log("Network being passed to Lace:", targetNetwork);
+
+    setWalletState((prev) => ({
+      ...prev,
+      isConnecting: true,
+      requestedNetwork: targetNetwork,
+      error: null,
+    }));
 
     try {
       const provider = discoverLaceProvider();
@@ -160,13 +195,23 @@ export function useMidnightWallet() {
         return;
       }
 
-      // Connect without forcing any network parameter
+      // Connect with validated network string
       let api: LaceAPI;
       try {
         if (typeof provider.connect === 'function') {
-          api = await provider.connect();
+          try {
+            api = await provider.connect(targetNetwork);
+          } catch (firstErr: unknown) {
+            const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+            if (msg.includes('Invalid network ID') || msg.includes('overload')) {
+              console.warn('[Wallet Debug] provider.connect(network) failed, retrying without arg:', msg);
+              api = await provider.connect();
+            } else {
+              throw firstErr;
+            }
+          }
         } else if (typeof provider.enable === 'function') {
-          api = await provider.enable();
+          api = await provider.enable(targetNetwork);
         } else {
           throw new Error('Provider does not expose connect() or enable()');
         }
@@ -210,7 +255,7 @@ export function useMidnightWallet() {
 
       let walletAddress: string | null = null;
       let walletCoinPublicKey: string | null = null;
-      let walletNetwork: string = 'preprod';
+      let walletNetwork: string = targetNetwork;
       let walletBalance: string | null = null;
 
       if (rawState) {
@@ -240,7 +285,7 @@ export function useMidnightWallet() {
       }
 
       console.log('[Wallet Debug] Wallet Address:', walletAddress);
-      console.log('[Wallet Debug] Detected Network:', walletNetwork);
+      console.log('[Wallet Debug] Connected Network:', walletNetwork);
 
       // Persist session
       try {
@@ -254,6 +299,7 @@ export function useMidnightWallet() {
         isConnecting: false,
         address: walletAddress,
         coinPublicKey: walletCoinPublicKey,
+        requestedNetwork: targetNetwork,
         network: walletNetwork,
         balance: walletBalance,
         error: null,
@@ -288,12 +334,14 @@ export function useMidnightWallet() {
       // Ignored
     }
 
+    const net = getTargetNetwork();
     setWalletState((prev) => ({
       isConnected: false,
       isConnecting: false,
       address: null,
       coinPublicKey: null,
-      network: 'auto-detected',
+      requestedNetwork: net,
+      network: net,
       balance: null,
       error: null,
       laceDetected: prev.laceDetected,
@@ -365,8 +413,8 @@ export function getWalletErrorMessage(error: string | null): string {
     return 'Midnight Lace Wallet not detected. Please install the Midnight Lace extension from the browser store.';
   if (error === 'CONNECTION_REJECTED')
     return 'Connection request rejected. Please approve the connection in your Midnight Lace Wallet popup.';
-  if (error.includes('Network ID mismatch'))
-    return 'Network ID mismatch: The selected network in your Midnight Lace Wallet does not match the application. Please check your Lace Wallet network setting.';
+  if (error.includes('Network ID mismatch') || error.includes('Invalid network ID'))
+    return `Network ID mismatch or invalid: ${error}. Please check your Lace Wallet network settings.`;
   return error;
 }
 

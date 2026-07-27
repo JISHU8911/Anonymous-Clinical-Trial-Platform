@@ -62,7 +62,7 @@ export const WalletDebugPanel: React.FC<WalletDebugPanelProps> = ({ wallet }) =>
         }}>
           <div style={{ fontWeight: 700, color: '#38bdf8', fontSize: '0.85rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Shield size={14} />
-            Midnight Wallet Provider Diagnostics
+            Midnight Wallet Diagnostics
           </div>
 
           <div>
@@ -88,7 +88,12 @@ export const WalletDebugPanel: React.FC<WalletDebugPanelProps> = ({ wallet }) =>
           </div>
 
           <div>
-            <span style={{ color: '#94a3b8' }}>Detected Network: </span>
+            <span style={{ color: '#94a3b8' }}>Requested Network: </span>
+            <span style={{ color: '#fcd34d', fontWeight: 700 }}>{wallet.requestedNetwork}</span>
+          </div>
+
+          <div>
+            <span style={{ color: '#94a3b8' }}>Connected Network: </span>
             <span style={{ color: '#a5f3fc', fontWeight: 700 }}>{wallet.network}</span>
           </div>
 
