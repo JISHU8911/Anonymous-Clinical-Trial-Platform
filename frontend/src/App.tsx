@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { LedgerState } from './components/TrialDashboard';
+import { WalletDebugPanel } from './components/WalletDebugPanel';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
@@ -156,9 +157,11 @@ export function App() {
       </main>
 
       <Footer />
+
+      {/* Lace 4.0.1 Debug Panel */}
+      <WalletDebugPanel wallet={wallet} />
     </div>
   );
 }
 
 export default App;
-

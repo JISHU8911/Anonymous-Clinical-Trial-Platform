@@ -1,18 +1,14 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
 
 // =============================================================================
-// Midnight Lace Wallet — Dynamic DApp Integration
-// Based on: https://docs.midnight.network/develop/tutorial/using/chrome-ext
+// Midnight Lace Wallet 4.0.1 — Dynamic Connector
 //
-// Dynamic Discovery:
-//   Inspects Object.values(window.midnight || {}) dynamically.
-//   Identifies providers registered under dynamic UUIDs (e.g. window.midnight['9612a258-d749-46cd-98e4-196d8d3dfcd8'])
-//   where provider.name === 'lace' or provider.rdns === 'io.lace.wallet' or enable exists.
-//
-// RULES:
-//   - NEVER use fixed keys like window.midnight.mnLace or window.midnight.lace
-//   - NEVER generate fake/mock addresses or use fallback wallets
-//   - If Lace is not installed → show "Midnight Lace Wallet not detected."
+// Features:
+//   - Discovers providers via Object.values(window.midnight || {})
+//   - Connects using provider.connect() or provider.enable() WITHOUT forcing network arguments
+//   - Detects network dynamically from wallet response
+//   - Provides detailed error handling for Network ID mismatch & connection rejections
+//   - Stores provider name, RDNS, and API version for debugging
 // =============================================================================
 
 export interface WalletState {
@@ -25,6 +21,8 @@ export interface WalletState {
   error: string | null;
   laceDetected: boolean;
   providerName: string | null;
+  providerRdns: string | null;
+  apiVersion: string | null;
 }
 
 export interface LaceProvider {
@@ -32,13 +30,15 @@ export interface LaceProvider {
   rdns?: string;
   apiVersion?: string;
   icon?: string;
-  enable(): Promise<LaceAPI>;
-  isEnabled(): Promise<boolean>;
+  connect?: () => Promise<LaceAPI>;
+  enable?: () => Promise<LaceAPI>;
+  isEnabled?: () => Promise<boolean>;
 }
 
 export interface LaceAPI {
   state?: (() => Promise<LaceWalletState> | { subscribe?: (fn: (state: LaceWalletState) => void) => unknown } | LaceWalletState) | LaceWalletState;
   serviceUriConfig?: () => Promise<unknown> | unknown;
+  networkId?: string;
 }
 
 export interface LaceWalletState {
@@ -58,25 +58,29 @@ declare global {
 
 /**
  * Discover the Midnight Lace Wallet provider dynamically from window.midnight.
- * Performs full Object.values(window.midnight || {}) search.
+ * Supports Lace 4.0.1 API (provider.connect / provider.enable).
  */
 function discoverLaceProvider(): LaceProvider | null {
   if (typeof window === 'undefined') return null;
 
-  console.log("window.midnight", window.midnight);
-  const providers = Object.values(window.midnight || {}) as LaceProvider[];
-  console.log("Detected Providers", providers);
+  const rawMidnight = window.midnight || {};
+  console.log('[Wallet Debug] window.midnight:', rawMidnight);
+
+  const providers = Object.values(rawMidnight) as LaceProvider[];
+  console.log('[Wallet Debug] Detected Providers:', providers);
 
   const laceProvider = providers.find(
     p =>
       p?.name?.toLowerCase() === 'lace' ||
       p?.rdns === 'io.lace.wallet' ||
-      (p && typeof p.enable === 'function')
+      typeof p?.connect === 'function' ||
+      typeof p?.enable === 'function'
   ) || null;
 
-  console.log("Selected Provider", laceProvider);
-  console.log("Provider Name", laceProvider?.name);
-  console.log("Provider RDNS", laceProvider?.rdns);
+  console.log('[Wallet Debug] Selected Provider:', laceProvider);
+  console.log('[Wallet Debug] Provider Name:', laceProvider?.name);
+  console.log('[Wallet Debug] Provider RDNS:', laceProvider?.rdns);
+  console.log('[Wallet Debug] Provider API Version:', laceProvider?.apiVersion);
 
   return laceProvider;
 }
@@ -92,30 +96,38 @@ export function useMidnightWallet() {
     isConnecting: false,
     address: null,
     coinPublicKey: null,
-    network: import.meta.env.VITE_NETWORK || 'undeployed',
+    network: 'auto-detected',
     balance: null,
     error: null,
     laceDetected: false,
     providerName: null,
+    providerRdns: null,
+    apiVersion: null,
   });
 
   const connectRef = useRef<(() => Promise<void>) | null>(null);
 
   /**
-   * Check presence of Lace Wallet provider.
+   * Check presence of Lace Wallet provider and update state flags.
    */
   const checkLacePresence = useCallback(() => {
     const provider = discoverLaceProvider();
     const detected = !!provider;
 
     setWalletState((prev) => {
-      if (prev.laceDetected === detected && prev.providerName === (provider?.name || (detected ? 'Lace' : null))) {
+      if (
+        prev.laceDetected === detected &&
+        prev.providerName === (provider?.name || (detected ? 'Lace' : null)) &&
+        prev.apiVersion === (provider?.apiVersion || null)
+      ) {
         return prev;
       }
       return {
         ...prev,
         laceDetected: detected,
         providerName: provider?.name || (detected ? 'Lace' : null),
+        providerRdns: provider?.rdns || (detected ? 'io.lace.wallet' : null),
+        apiVersion: provider?.apiVersion || null,
         error: prev.error === 'LACE_NOT_DETECTED' && detected ? null : prev.error,
       };
     });
@@ -123,7 +135,8 @@ export function useMidnightWallet() {
   }, []);
 
   /**
-   * Connect to Midnight Lace Wallet.
+   * Connect to Midnight Lace Wallet using provider.connect() or provider.enable().
+   * NO arguments are passed to avoid "Network ID mismatch" errors.
    */
   const connect = useCallback(async () => {
     setWalletState((prev) => ({ ...prev, isConnecting: true, error: null }));
@@ -140,19 +153,27 @@ export function useMidnightWallet() {
           balance: null,
           laceDetected: false,
           providerName: null,
+          providerRdns: null,
+          apiVersion: null,
           error: 'LACE_NOT_DETECTED',
         }));
         return;
       }
 
-      // Enable — triggers user authorization prompt in extension popup
+      // Connect without forcing any network parameter
       let api: LaceAPI;
       try {
-        api = await provider.enable();
-        console.log('[Midnight Wallet] Enabled API:', api);
+        if (typeof provider.connect === 'function') {
+          api = await provider.connect();
+        } else if (typeof provider.enable === 'function') {
+          api = await provider.enable();
+        } else {
+          throw new Error('Provider does not expose connect() or enable()');
+        }
+        console.log('[Wallet Debug] Connected API:', api);
       } catch (enableErr: unknown) {
         const msg = enableErr instanceof Error ? enableErr.message : String(enableErr);
-        console.error('[Midnight Wallet] provider.enable() failed:', enableErr);
+        console.error('[Wallet Debug] Connection failed:', enableErr);
         const isRejection = /user rejected|denied|cancelled|cancel|refused/i.test(msg);
         setWalletState((prev) => ({
           ...prev,
@@ -162,7 +183,7 @@ export function useMidnightWallet() {
         return;
       }
 
-      // Fetch state safely (Promise, Observable, or Direct Object)
+      // Extract state from returned API
       let rawState: LaceWalletState | null = null;
 
       try {
@@ -184,16 +205,16 @@ export function useMidnightWallet() {
           rawState = api.state as LaceWalletState;
         }
       } catch (stateErr) {
-        console.warn('[Midnight Wallet] Error extracting wallet state:', stateErr);
+        console.warn('[Wallet Debug] Error extracting wallet state:', stateErr);
       }
 
       let walletAddress: string | null = null;
       let walletCoinPublicKey: string | null = null;
-      let walletNetwork: string = import.meta.env.VITE_NETWORK || 'undeployed';
+      let walletNetwork: string = 'preprod';
       let walletBalance: string | null = null;
 
       if (rawState) {
-        console.log('[Midnight Wallet] Extracted Wallet State:', rawState);
+        console.log('[Wallet Debug] Extracted Wallet State:', rawState);
         if (rawState.address && typeof rawState.address === 'string') {
           walletAddress = rawState.address.trim();
         } else if (rawState.unshieldedAddress && typeof rawState.unshieldedAddress === 'string') {
@@ -206,6 +227,8 @@ export function useMidnightWallet() {
 
         if (rawState.networkId && typeof rawState.networkId === 'string') {
           walletNetwork = rawState.networkId;
+        } else if (api.networkId && typeof api.networkId === 'string') {
+          walletNetwork = api.networkId;
         }
 
         if (rawState.balances && typeof rawState.balances === 'object') {
@@ -216,7 +239,8 @@ export function useMidnightWallet() {
         }
       }
 
-      console.log('[Midnight Wallet] Wallet Address:', walletAddress);
+      console.log('[Wallet Debug] Wallet Address:', walletAddress);
+      console.log('[Wallet Debug] Detected Network:', walletNetwork);
 
       // Persist session
       try {
@@ -235,11 +259,13 @@ export function useMidnightWallet() {
         error: null,
         laceDetected: true,
         providerName: provider.name || 'Lace',
+        providerRdns: provider.rdns || 'io.lace.wallet',
+        apiVersion: provider.apiVersion || '4.0.1',
       });
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to connect Midnight Lace Wallet';
-      console.error('[Midnight Wallet] Connect Error:', err);
+      console.error('[Wallet Debug] Unhandled Connect Error:', err);
       setWalletState((prev) => ({
         ...prev,
         isConnecting: false,
@@ -267,11 +293,13 @@ export function useMidnightWallet() {
       isConnecting: false,
       address: null,
       coinPublicKey: null,
-      network: import.meta.env.VITE_NETWORK || 'undeployed',
+      network: 'auto-detected',
       balance: null,
       error: null,
       laceDetected: prev.laceDetected,
       providerName: prev.providerName,
+      providerRdns: prev.providerRdns,
+      apiVersion: prev.apiVersion,
     }));
   }, []);
 
@@ -337,6 +365,8 @@ export function getWalletErrorMessage(error: string | null): string {
     return 'Midnight Lace Wallet not detected. Please install the Midnight Lace extension from the browser store.';
   if (error === 'CONNECTION_REJECTED')
     return 'Connection request rejected. Please approve the connection in your Midnight Lace Wallet popup.';
+  if (error.includes('Network ID mismatch'))
+    return 'Network ID mismatch: The selected network in your Midnight Lace Wallet does not match the application. Please check your Lace Wallet network setting.';
   return error;
 }
 
