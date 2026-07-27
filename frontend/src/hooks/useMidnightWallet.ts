@@ -1,20 +1,19 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
 
 // =============================================================================
-// Midnight Lace Wallet — Official DApp Integration
+// Midnight Lace Wallet — Dynamic DApp Integration
 // Based on: https://docs.midnight.network/develop/tutorial/using/chrome-ext
 //
-// Official API:
-//   const lace = window.midnight.mnLace;
-//   const api  = await lace.enable();             // triggers approval popup
-//   const state = await api.state();               // { address, coinPublicKey, ... }
-//   const isAuth = await lace.isEnabled();         // check existing auth
+// Dynamic Discovery:
+//   Inspects Object.values(window.midnight || {}) dynamically.
+//   Identifies providers registered under dynamic UUIDs (e.g. window.midnight['<uuid>'])
+//   where provider.name === 'lace' or provider.rdns === 'io.lace.wallet' or apiVersion exists.
 //
 // RULES:
-//   - ONLY connect to window.midnight.mnLace
-//   - NEVER generate fake addresses
+//   - NEVER use fixed keys like window.midnight.mnLace as sole provider source
+//   - NEVER generate fake/mock addresses
 //   - NEVER fallback to placeholder data
-//   - If Lace is not installed → show install prompt only
+//   - If Lace is not installed → show "Midnight Lace Wallet not detected." only
 // =============================================================================
 
 export interface WalletState {
@@ -26,28 +25,30 @@ export interface WalletState {
   balance: string | null;
   error: string | null;
   laceDetected: boolean;
+  providerName: string | null;
 }
 
-// Official Midnight Lace Wallet provider type (window.midnight.mnLace)
-interface LaceProvider {
+export interface LaceProvider {
+  name?: string;
+  rdns?: string;
+  apiVersion?: string;
+  icon?: string;
   enable(): Promise<LaceAPI>;
   isEnabled(): Promise<boolean>;
-  apiVersion?: string;
-  name?: string;
 }
 
-// Official Midnight Lace Wallet API returned by enable()
-interface LaceAPI {
-  state(): Promise<LaceWalletState>;
+export interface LaceAPI {
+  state?: (() => Promise<LaceWalletState> | { subscribe?: (fn: (state: LaceWalletState) => void) => unknown } | LaceWalletState) | LaceWalletState;
+  serviceUriConfig?: () => Promise<unknown> | unknown;
 }
 
-// Official wallet state returned by api.state()
-interface LaceWalletState {
+export interface LaceWalletState {
   address?: string;
   coinPublicKey?: string;
   encryptionPublicKey?: string;
   networkId?: string;
-  balances?: Record<string, string>;
+  balances?: Record<string, string | number | bigint>;
+  unshieldedAddress?: string;
 }
 
 declare global {
@@ -57,37 +58,76 @@ declare global {
 }
 
 /**
- * Detect the Midnight Lace Wallet provider from window.midnight.
+ * Discover the Midnight Lace Wallet provider dynamically from window.midnight.
  * 
- * Per official docs: check window.midnight.mnLace first.
- * Also enumerate window.midnight for any injected provider (future-proofing).
+ * Supports:
+ *   - Object.values(window.midnight || {})
+ *   - Dynamic UUID keys (e.g., window.midnight['9612a258-d749-46cd-98e4-196d8d3dfcd8'])
+ *   - provider.name === 'lace' || provider.rdns === 'io.lace.wallet' || provider.apiVersion
  */
-function detectLaceProvider(): LaceProvider | null {
-  if (typeof window === 'undefined' || !window.midnight) return null;
-
-  // Primary: official key
-  const mnLace = window.midnight.mnLace as LaceProvider | undefined;
-  if (mnLace && typeof mnLace.enable === 'function') return mnLace;
-
-  // Secondary: enumerate for any injected provider
-  for (const value of Object.values(window.midnight)) {
-    const provider = value as LaceProvider;
-    if (provider && typeof provider.enable === 'function') return provider;
+function discoverLaceProvider(): { provider: LaceProvider; key: string } | null {
+  if (typeof window === 'undefined' || !window.midnight) {
+    console.log('[Midnight Wallet] window.midnight is not defined');
+    return null;
   }
 
-  return null;
+  const entries = Object.entries(window.midnight);
+  console.log('[Midnight Wallet] Detected Providers on window.midnight:', entries.map(([k, v]) => ({
+    key: k,
+    name: (v as LaceProvider)?.name,
+    rdns: (v as LaceProvider)?.rdns,
+    apiVersion: (v as LaceProvider)?.apiVersion,
+  })));
+
+  const candidates: { provider: LaceProvider; key: string }[] = [];
+
+  for (const [key, value] of entries) {
+    if (!value || typeof value !== 'object') continue;
+    const provider = value as LaceProvider;
+
+    if (typeof provider.enable === 'function') {
+      const name = provider.name?.toLowerCase() || '';
+      const rdns = provider.rdns?.toLowerCase() || '';
+      
+      const isLaceMatch =
+        name === 'lace' ||
+        rdns === 'io.lace.wallet' ||
+        key === 'mnLace' ||
+        key === 'lace' ||
+        !!provider.apiVersion;
+
+      if (isLaceMatch) {
+        candidates.push({ provider, key });
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    // Broad fallback for any valid provider with an enable function
+    for (const [key, value] of entries) {
+      if (value && typeof (value as any).enable === 'function') {
+        candidates.push({ provider: value as LaceProvider, key });
+      }
+    }
+  }
+
+  const selected = candidates[0] || null;
+
+  if (selected) {
+    console.log('[Midnight Wallet] Selected Provider Key:', selected.key);
+    console.log('[Midnight Wallet] Selected Provider Obj:', selected.provider);
+    console.log('[Midnight Wallet] Wallet Name:', selected.provider.name || 'Lace');
+  } else {
+    console.log('[Midnight Wallet] Midnight Lace Wallet not detected on window.midnight');
+  }
+
+  return selected;
 }
 
+const SESSION_KEY = 'midnight-lace-connected';
+
 /**
- * useMidnightWallet — React hook for Midnight Lace Wallet integration.
- *
- * Uses the OFFICIAL Midnight Lace DApp API:
- *   1. Detect: window.midnight.mnLace
- *   2. Enable: provider.enable()  → triggers user approval popup
- *   3. State:  api.state()        → { address, coinPublicKey, networkId }
- *
- * NEVER generates fake addresses. NEVER uses mock data.
- * If Lace is not installed, sets error = 'LACE_NOT_DETECTED' only.
+ * React hook for Midnight Lace Wallet integration using dynamic discovery.
  */
 export function useMidnightWallet() {
   const [walletState, setWalletState] = useState<WalletState>({
@@ -99,22 +139,24 @@ export function useMidnightWallet() {
     balance: null,
     error: null,
     laceDetected: false,
+    providerName: null,
   });
 
-  // Prevent stale closure issues with connect
   const connectRef = useRef<(() => Promise<void>) | null>(null);
 
   /**
-   * Check whether the Lace extension is installed and update laceDetected.
+   * Detect Lace provider and update presence flag.
    */
   const checkLacePresence = useCallback(() => {
-    const detected = !!detectLaceProvider();
+    const discovered = discoverLaceProvider();
+    const detected = !!discovered;
+    
     setWalletState((prev) => {
       if (prev.laceDetected === detected) return prev;
       return {
         ...prev,
         laceDetected: detected,
-        // Clear "not detected" error if extension just appeared
+        providerName: discovered?.provider?.name || (detected ? 'Lace' : null),
         error: prev.error === 'LACE_NOT_DETECTED' && detected ? null : prev.error,
       };
     });
@@ -123,20 +165,13 @@ export function useMidnightWallet() {
 
   /**
    * Connect to Midnight Lace Wallet.
-   *
-   * Flow:
-   *   1. Detect provider — if missing, set LACE_NOT_DETECTED, stop.
-   *   2. Call provider.enable() — triggers Lace approval popup.
-   *   3. Call api.state() — get real address and keys from Lace.
-   *   4. Update state with real wallet data.
    */
   const connect = useCallback(async () => {
     setWalletState((prev) => ({ ...prev, isConnecting: true, error: null }));
 
     try {
-      // Step 1: Detect
-      const provider = detectLaceProvider();
-      if (!provider) {
+      const discovered = discoverLaceProvider();
+      if (!discovered) {
         setWalletState((prev) => ({
           ...prev,
           isConnecting: false,
@@ -145,17 +180,22 @@ export function useMidnightWallet() {
           coinPublicKey: null,
           balance: null,
           laceDetected: false,
+          providerName: null,
           error: 'LACE_NOT_DETECTED',
         }));
         return;
       }
 
-      // Step 2: Enable — triggers Lace approval popup
+      const { provider } = discovered;
+
+      // Enable — triggers user authorization prompt in extension popup
       let api: LaceAPI;
       try {
         api = await provider.enable();
+        console.log('[Midnight Wallet] Enable Succeeded. API returned:', api);
       } catch (enableErr: unknown) {
         const msg = enableErr instanceof Error ? enableErr.message : String(enableErr);
+        console.error('[Midnight Wallet] provider.enable() failed:', enableErr);
         const isRejection = /user rejected|denied|cancelled|cancel|refused/i.test(msg);
         setWalletState((prev) => ({
           ...prev,
@@ -165,55 +205,84 @@ export function useMidnightWallet() {
         return;
       }
 
-      // Step 3: Get wallet state — OFFICIAL API: api.state() → { address, coinPublicKey }
+      // Fetch state safely (Promise, Observable, or Direct Object)
+      let rawState: LaceWalletState | null = null;
+
+      try {
+        if (typeof api.state === 'function') {
+          const res = api.state();
+          if (res && typeof (res as any).then === 'function') {
+            rawState = await (res as Promise<LaceWalletState>);
+          } else if (res && typeof (res as any).subscribe === 'function') {
+            rawState = await new Promise<LaceWalletState>((resolve) => {
+              const sub = (res as any).subscribe((s: LaceWalletState) => {
+                if (sub && typeof sub.unsubscribe === 'function') sub.unsubscribe();
+                resolve(s);
+              });
+            });
+          } else {
+            rawState = res as LaceWalletState;
+          }
+        } else if (api.state && typeof api.state === 'object') {
+          rawState = api.state as LaceWalletState;
+        }
+      } catch (stateErr) {
+        console.warn('[Midnight Wallet] Error extracting wallet state:', stateErr);
+      }
+
       let walletAddress: string | null = null;
       let walletCoinPublicKey: string | null = null;
       let walletNetwork: string = import.meta.env.VITE_NETWORK || 'undeployed';
       let walletBalance: string | null = null;
 
-      try {
-        const state = await api.state();
-
-        // address is the real Lace wallet address
-        if (state.address && typeof state.address === 'string' && state.address.trim() !== '') {
-          walletAddress = state.address.trim();
+      if (rawState) {
+        console.log('[Midnight Wallet] Extracted Wallet State:', rawState);
+        if (rawState.address && typeof rawState.address === 'string') {
+          walletAddress = rawState.address.trim();
+        } else if (rawState.unshieldedAddress && typeof rawState.unshieldedAddress === 'string') {
+          walletAddress = rawState.unshieldedAddress.trim();
         }
 
-        if (state.coinPublicKey && typeof state.coinPublicKey === 'string') {
-          walletCoinPublicKey = state.coinPublicKey.trim();
+        if (rawState.coinPublicKey && typeof rawState.coinPublicKey === 'string') {
+          walletCoinPublicKey = rawState.coinPublicKey.trim();
         }
 
-        if (state.networkId && typeof state.networkId === 'string') {
-          walletNetwork = state.networkId;
+        if (rawState.networkId && typeof rawState.networkId === 'string') {
+          walletNetwork = rawState.networkId;
         }
 
-        // Parse balances if available
-        if (state.balances && typeof state.balances === 'object') {
-          const entries = Object.entries(state.balances);
+        if (rawState.balances && typeof rawState.balances === 'object') {
+          const entries = Object.entries(rawState.balances);
           if (entries.length > 0) {
-            const [, amount] = entries[0];
-            walletBalance = `${amount} tDust`;
+            walletBalance = `${entries[0][1]} tDust`;
           }
         }
-      } catch (stateErr: unknown) {
-        // State fetch failure — connected but address unavailable
-        console.warn('[Lace] api.state() failed:', stateErr);
       }
 
-      // Step 4: Update state with real wallet data (no fake fallback)
+      console.log('[Midnight Wallet] Wallet Address:', walletAddress);
+
+      // Persist session
+      try {
+        sessionStorage.setItem(SESSION_KEY, 'true');
+      } catch {
+        // Ignored if storage unavailable
+      }
+
       setWalletState({
         isConnected: true,
         isConnecting: false,
-        address: walletAddress,          // null if Lace didn't return one
+        address: walletAddress,
         coinPublicKey: walletCoinPublicKey,
         network: walletNetwork,
         balance: walletBalance,
         error: null,
         laceDetected: true,
+        providerName: provider.name || 'Lace',
       });
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to connect Midnight Lace Wallet';
+      console.error('[Midnight Wallet] Connect Error:', err);
       setWalletState((prev) => ({
         ...prev,
         isConnecting: false,
@@ -222,16 +291,20 @@ export function useMidnightWallet() {
     }
   }, []);
 
-  // Keep ref in sync so reconnect can call the latest connect
   useEffect(() => {
     connectRef.current = connect;
   }, [connect]);
 
   /**
    * Disconnect from Lace Wallet.
-   * Clears all wallet state — no fake data is restored.
    */
   const disconnect = useCallback(() => {
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+    } catch {
+      // Ignored
+    }
+
     setWalletState((prev) => ({
       isConnected: false,
       isConnecting: false,
@@ -241,39 +314,41 @@ export function useMidnightWallet() {
       balance: null,
       error: null,
       laceDetected: prev.laceDetected,
+      providerName: prev.providerName,
     }));
   }, []);
 
   /**
-   * Reconnect: if Lace is installed and previously authorized, connect silently.
+   * Reconnect automatically if previously authorized.
    */
   const reconnect = useCallback(async () => {
-    const provider = detectLaceProvider();
-    if (!provider) return;
+    const discovered = discoverLaceProvider();
+    if (!discovered) return;
 
     try {
-      const alreadyEnabled = await provider.isEnabled();
-      if (alreadyEnabled && connectRef.current) {
+      const wasSessionConnected = sessionStorage.getItem(SESSION_KEY) === 'true';
+      const isEnabled = typeof discovered.provider.isEnabled === 'function'
+        ? await discovered.provider.isEnabled()
+        : false;
+
+      if ((wasSessionConnected || isEnabled) && connectRef.current) {
         await connectRef.current();
       }
     } catch {
-      // Silent failure — reconnect is best-effort
+      // Best effort reconnect
     }
   }, []);
 
-  // On mount: detect extension presence
   useEffect(() => {
     checkLacePresence();
   }, [checkLacePresence]);
 
-  // Re-check when window regains focus (user may have just installed Lace)
   useEffect(() => {
     const onFocus = () => checkLacePresence();
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [checkLacePresence]);
 
-  // Auto-reconnect if previously authorized
   useEffect(() => {
     reconnect();
   }, [reconnect]);
@@ -286,7 +361,6 @@ export function useMidnightWallet() {
   };
 }
 
-/** Human-readable error messages for display in the UI. */
 export function getWalletErrorMessage(error: string | null): string {
   if (!error) return '';
   if (error === 'LACE_NOT_DETECTED')
@@ -296,7 +370,6 @@ export function getWalletErrorMessage(error: string | null): string {
   return error;
 }
 
-/** Truncate a wallet address for compact UI display. */
 export function formatWalletAddress(address: string | null): string {
   if (!address) return '';
   if (address.length <= 20) return address;
