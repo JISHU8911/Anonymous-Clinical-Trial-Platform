@@ -47,7 +47,7 @@ jobs:
 
       - name: Verify compiled contract artifacts exist
         run: |
-          if [ -f "contracts/managed/clinical-trial/index.cjs" ]; then
+          if [ -f "contracts/managed/clinical-trial/contract/index.js" ]; then
             echo "✅ Compiled contract artifacts present"
           else
             echo "⚠️  Compiled contract artifacts missing — run: npm run compile"
@@ -66,3 +66,4 @@ jobs:
           VITE_NETWORK: undeployed
           VITE_CONTRACT_ADDRESS: dec3b071d373ec575648e0c5dfee659710312616875db1fb6cd84a06c7cc6dd2
           VITE_PROOF_SERVER_URL: http://127.0.0.1:6300
+
