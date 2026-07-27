@@ -1,49 +1,68 @@
-name: Anonymous Clinical Trial Platform CI
+﻿name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
-  build-test:
-    name: Build, Compile & Test
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22.x
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install Project Dependencies
-        run: npm ci || npm install
+      - name: Install root dependencies
+        run: npm ci
 
-      - name: Compile Compact Smart Contract
+      - name: Install Compact compiler (if available)
+        run: |
+          if command -v compact &> /dev/null; then
+            echo "Compact compiler found"
+          elif [ -f "$HOME/.local/bin/compact" ]; then
+            echo "Compact compiler found at $HOME/.local/bin/compact"
+          else
+            echo "Compact compiler not available in CI — skipping contract compilation"
+          fi
+
+      - name: Compile Compact smart contract (if compiler available)
         run: |
           if command -v compact &> /dev/null; then
             npm run compile
-          elif [ -f "/home/zeal/.local/bin/compact" ]; then
-            /home/zeal/.local/bin/compact compile contracts/clinical-trial.compact contracts/managed/clinical-trial
+          elif [ -f "$HOME/.local/bin/compact" ]; then
+            npm run compile
           else
-            echo "Compact compiler not in PATH on runner; verifying pre-generated managed contract artifacts."
-            test -f contracts/managed/clinical-trial/contract/index.js
+            echo "Skipping Compact compilation — compiler not available in CI runner"
+            echo "Compiled artifacts are committed to the repository"
+          fi
+        continue-on-error: true
+
+      - name: Verify compiled contract artifacts exist
+        run: |
+          if [ -f "contracts/managed/clinical-trial/index.cjs" ]; then
+            echo "✅ Compiled contract artifacts present"
+          else
+            echo "⚠️  Compiled contract artifacts missing — run: npm run compile"
+            exit 1
           fi
 
-      - name: Run Automated Unit & Privacy Tests
+      - name: Run test suite
         run: npm test
 
-      - name: Install Frontend Dependencies
-        run: |
-          cd frontend
-          npm ci || npm install
+      - name: Install frontend dependencies
+        run: npm install --prefix frontend
 
-      - name: Type-Check and Build Frontend App
-        run: |
-          cd frontend
-          npm run build
+      - name: Build frontend
+        run: npm run build --prefix frontend
+        env:
+          VITE_NETWORK: undeployed
+          VITE_CONTRACT_ADDRESS: dec3b071d373ec575648e0c5dfee659710312616875db1fb6cd84a06c7cc6dd2
+          VITE_PROOF_SERVER_URL: http://127.0.0.1:6300

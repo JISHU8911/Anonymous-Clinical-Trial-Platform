@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -105,6 +105,8 @@ export function App() {
         isConnecting={wallet.isConnecting}
         address={wallet.address}
         network={wallet.network}
+        error={wallet.error}
+        laceDetected={wallet.laceDetected}
         onConnect={wallet.connect}
         onDisconnect={wallet.disconnect}
       />
@@ -159,3 +161,4 @@ export function App() {
 }
 
 export default App;
+
